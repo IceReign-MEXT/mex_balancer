@@ -1,0 +1,10 @@
+{
+  "eth_wallets": ["0x08D171685e51bAf7a929cE8945CF25b3D1Ac9756"],
+  "sol_wallets": ["3JqvK1ZAt67nipBVgZj6zWvuT8icMWBMWyu5AwYnhVss"],
+  "eth_receiver": "0xF2776435A6ba8dEaA6F90546B13B8a0E3eB751DD",
+  "sol_receiver": "EbrrPJMRWTAG9kEpoDcqTVZ1N3NXwQwAmQbcBi7b1xQn",
+  "etherscan_api": "T6H7KF46NT1GFP9BDRVNQ3D5GI7JPXZ671",
+  "telegram_bot_token": "7714757245:AAEE5-K6gBVsjIhybAw0D_4dj-DLa3X2V-Y",
+  "telegram_chat_id": "6453658778",
+  "sweep_trigger_usd": 50
+}

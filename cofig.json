@@ -1,0 +1,42 @@
+import json
+import requests
+
+with open('config.json') as f:
+    config = json.load(f)
+
+ETHERSCAN_API = config['etherscan_api']
+ETH_WALLETS = config['eth_wallets']
+SOL_WALLETS = config['sol_wallets']
+
+def get_eth_balance(address):
+    url = f"https://api.etherscan.io/api?module=account&action=balance&address={address}&tag=latest&apikey={ETHERSCAN_API}"
+    response = requests.get(url).json()
+    if response["status"] == "1":
+        eth_balance = int(response["result"]) / 10**18
+        return eth_balance
+    else:
+        return "Error"
+
+print("📦 ETH Wallet Balances:")
+for wallet in ETH_WALLETS:
+    print(f"{wallet}: {get_eth_balance(wallet)} ETH")
+
+print("\n📦 SOL Wallet Balances:")
+for wallet in SOL_WALLETS:
+    url = f"https://api.mainnet-beta.solana.com"
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getBalance",
+        "params": [wallet]
+    }
+    try:
+        res = requests.post(url, headers=headers, json=body).json()
+        lamports = res['result']['value']
+        sol_balance = lamports / 1e9
+        print(f"{wallet}: {sol_balance} SOL")
+    except Exception as e:
+        print(f"{wallet}: Error - {str(e)}")
+ + 0,
++ X.
