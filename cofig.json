@@ -38,5 +38,3 @@ for wallet in SOL_WALLETS:
         print(f"{wallet}: {sol_balance} SOL")
     except Exception as e:
         print(f"{wallet}: Error - {str(e)}")
- + 0,
-+ X.
