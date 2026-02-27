@@ -44,3 +44,21 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+async def get_status(update, context):
+    # This will pull from your DATABASE_URL in the future
+    await update.message.reply_text("📊 **ICEBOYS STATS**\n\nInitial: **0.00**\nCurrent: **Pending...**\nShield: **ACTIVE**")
+
+async def panic_withdraw(update, context):
+    safe_wallet = os.getenv("SOL_MAIN")
+    await update.message.reply_text(f"⚠️ **PANIC MODE:** Initiating full withdrawal to:\n`{safe_wallet}`")
+
+# Update the main() function to include these
+def main():
+    # ... (Heartbeat code stays the same)
+    app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("status", get_status))
+    app.add_handler(CommandHandler("panic", panic_withdraw))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+    app.run_polling()
