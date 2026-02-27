@@ -12,7 +12,7 @@ class CopyTrading:
     
     def __init__(self):
         self.leaderboard = {}
-        self.copy_settings = {}  # user_id -> {target_trader, percentage}
+        self.copy_settings = {}
     
     def get_top_traders(self, limit: int = 10) -> List[Dict]:
         """Get top performing traders"""
@@ -42,23 +42,3 @@ class CopyTrading:
             "started": datetime.now().isoformat()
         }
         logger.info(f"User {user_id} now copying {target_id} at {percentage}%")
-    
-    async def execute_copy_trade(self, user_id: int, target_trade: Dict):
-        """Execute trade on behalf of copier"""
-        if user_id not in self.copy_settings:
-            return None
-        
-        settings = self.copy_settings[user_id]
-        if not settings['enabled']:
-            return None
-        
-        # Calculate copy amount
-        copy_amount = target_trade['amount'] * (settings['percentage'] / 100)
-        
-        return {
-            "copied": True,
-            "original_trader": settings['target'],
-            "amount": copy_amount,
-            "token": target_trade['token']
-        }
-

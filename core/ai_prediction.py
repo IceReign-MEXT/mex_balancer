@@ -4,7 +4,6 @@ Predicts token pumps using social + on-chain data
 """
 
 import aiohttp
-import json
 from typing import Dict, List
 from datetime import datetime
 from loguru import logger
@@ -81,4 +80,3 @@ class AIPredictor:
             return "🔴 AVOID"
         else:
             return "⏳ HOLD"
-
