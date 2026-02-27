@@ -13,16 +13,14 @@ cryptography==42.0.5
 mnemonic==0.21
 base58==2.1.1
 
-# Solana - FIXED VERSIONS
+# Solana - ALL VERSIONS LOCKED FOR COMPATIBILITY
 solana==0.33.0
 solders==0.21.0
 anchorpy==0.20.0
 construct==2.10.68
 
-# HTTP
+# HTTP & WebSocket - FIXED for anchorpy compatibility
 requests==2.31.0
 urllib3==2.2.1
-websockets==11.0.3
+websockets==10.0
 yarl==1.22.0
-
-# Remove asyncpg since using psycopg2-binary
