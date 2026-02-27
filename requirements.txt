@@ -1,26 +1,12 @@
-# Core
+# Core - Only stable, pure-Python packages
 python-telegram-bot==21.4
 python-dotenv==1.0.1
 aiohttp==3.9.5
 loguru==0.7.2
 tenacity==8.3.0
-
-# Database
-psycopg2-binary==2.9.9
-
-# Security & Crypto
-cryptography==42.0.5
-mnemonic==0.21
-base58==2.1.1
-
-# Solana - ALL VERSIONS LOCKED FOR COMPATIBILITY
-solana==0.33.0
-solders==0.21.0
-anchorpy==0.20.0
-construct==2.10.68
-
-# HTTP & WebSocket - FIXED for anchorpy compatibility
 requests==2.31.0
 urllib3==2.2.1
-websockets==10.0
-yarl==1.22.0
+base58==2.1.1
+
+# Remove ALL compiled packages that fail on Python 3.14
+# We'll use lightweight alternatives

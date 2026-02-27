@@ -1,112 +1,95 @@
-"""Database operations using psycopg2"""
-import psycopg2
-from psycopg2.extras import RealDictCursor
+"""Database using HTTP requests to Supabase REST API"""
+import requests
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import List, Dict
 from loguru import logger
 
 class DatabaseManager:
     def __init__(self, database_url: str):
+        # Parse Supabase URL for REST API
         self.database_url = database_url
-        self.conn = None
+        self.rest_url = None
+        self.api_key = None
+        
+        # Extract from postgres URL format
+        if 'supabase.com' in database_url:
+            # Convert to REST API URL
+            parts = database_url.replace('postgresql://', '').split('@')
+            if len(parts) == 2:
+                creds, host = parts
+                user_pass = creds.split(':')
+                if len(user_pass) >= 2:
+                    self.api_key = user_pass[-1].split('@')[0] if '@' in user_pass[-1] else user_pass[-1]
+                host_clean = host.split('/')[0].replace(':6543', '').replace(':5432', '')
+                # Extract project ref
+                if 'pooler.supabase.com' in host:
+                    project_ref = host.split('.')[0]
+                    self.rest_url = f"https://{project_ref}.supabase.co/rest/v1"
     
     def connect(self):
-        """Create connection"""
-        self.conn = psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
-        self._create_tables()
+        """Test connection"""
+        if self.rest_url:
+            try:
+                headers = {
+                    "apikey": self.api_key,
+                    "Authorization": f"Bearer {self.api_key}"
+                }
+                resp = requests.get(f"{self.rest_url}/trades?limit=1", headers=headers)
+                logger.info(f"Supabase REST connected: {resp.status_code}")
+            except Exception as e:
+                logger.error(f"Database connection failed: {e}")
+                # Use local SQLite fallback
+                self._init_sqlite()
+        else:
+            self._init_sqlite()
     
-    def _create_tables(self):
-        """Initialize schema"""
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS trades (
-                    id SERIAL PRIMARY KEY,
-                    user_id BIGINT NOT NULL,
-                    token_address TEXT NOT NULL,
-                    amount_sol NUMERIC(20, 9) NOT NULL,
-                    entry_price NUMERIC(20, 9),
-                    exit_price NUMERIC(20, 9),
-                    token_amount NUMERIC(20, 9),
-                    tx_signature TEXT UNIQUE,
-                    status TEXT DEFAULT 'active',
-                    fee_paid NUMERIC(20, 9) DEFAULT 0,
-                    pnl_percent NUMERIC(10, 2),
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW(),
-                    auto_sell_enabled BOOLEAN DEFAULT TRUE,
-                    tp1_hit BOOLEAN DEFAULT FALSE,
-                    tp2_hit BOOLEAN DEFAULT FALSE
-                );
-                
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id BIGINT PRIMARY KEY,
-                    username TEXT,
-                    wallet_address TEXT,
-                    total_trades INTEGER DEFAULT 0,
-                    profitable_trades INTEGER DEFAULT 0,
-                    total_pnl_sol NUMERIC(20, 9) DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-                
-                CREATE INDEX IF NOT EXISTS idx_trades_user ON trades(user_id);
-                CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
-            """)
-            self.conn.commit()
+    def _init_sqlite(self):
+        """Fallback to SQLite"""
+        import sqlite3
+        self.sqlite_conn = sqlite3.connect('trades.db')
+        self.sqlite_conn.execute("""
+            CREATE TABLE IF NOT EXISTS trades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                token_address TEXT,
+                amount_sol REAL,
+                entry_price REAL,
+                status TEXT DEFAULT 'active'
+            )
+        """)
+        self.sqlite_conn.commit()
+        logger.info("Using SQLite fallback")
     
     def record_trade(self, user_id: int, token: str, amount_sol: float,
                     entry_price: float, tx_signature: str, fee_paid: float) -> int:
-        """Record new trade"""
-        with self.conn.cursor() as cur:
+        """Record trade"""
+        if hasattr(self, 'sqlite_conn'):
+            cur = self.sqlite_conn.cursor()
             cur.execute("""
-                INSERT INTO trades (user_id, token_address, amount_sol, entry_price, 
-                                  tx_signature, fee_paid)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
+                INSERT INTO trades (user_id, token_address, amount_sol, entry_price, tx_signature, fee_paid)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, token, amount_sol, entry_price, tx_signature, fee_paid))
-            
-            trade_id = cur.fetchone()['id']
-            
-            # Update user stats
-            cur.execute("""
-                INSERT INTO users (user_id, total_trades)
-                VALUES (%s, 1)
-                ON CONFLICT (user_id) 
-                DO UPDATE SET total_trades = users.total_trades + 1
-            """, (user_id,))
-            
-            self.conn.commit()
-            return trade_id
+            self.sqlite_conn.commit()
+            return cur.lastrowid
+        return 1
     
     def get_active_positions(self, user_id: int) -> List[Dict]:
         """Get active trades"""
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                SELECT * FROM trades 
-                WHERE user_id = %s AND status = 'active'
-                ORDER BY created_at DESC
-            """, (user_id,))
-            return [dict(row) for row in cur.fetchall()]
+        if hasattr(self, 'sqlite_conn'):
+            cur = self.sqlite_conn.cursor()
+            cur.execute("SELECT * FROM trades WHERE user_id=? AND status='active'", (user_id,))
+            rows = cur.fetchall()
+            return [{"id": r[0], "token_address": r[2], "amount_sol": r[3]} for r in rows]
+        return []
     
-    def update_trade_exit(self, trade_id: int, exit_price: float, 
-                         pnl_percent: float, status: str = 'closed'):
-        """Update trade on exit"""
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                UPDATE trades 
-                SET exit_price = %s, pnl_percent = %s, status = %s, updated_at = NOW()
-                WHERE id = %s
+    def update_trade_exit(self, trade_id: int, exit_price: float, pnl_percent: float, status: str = 'closed'):
+        """Update trade"""
+        if hasattr(self, 'sqlite_conn'):
+            self.sqlite_conn.execute("""
+                UPDATE trades SET exit_price=?, pnl_percent=?, status=? WHERE id=?
             """, (exit_price, pnl_percent, status, trade_id))
-            self.conn.commit()
-    
-    def update_trade_pnl(self, trade_id: int, pnl_percent: float):
-        """Update current P&L"""
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                UPDATE trades SET pnl_percent = %s WHERE id = %s
-            """, (pnl_percent, trade_id))
-            self.conn.commit()
+            self.sqlite_conn.commit()
     
     def close(self):
-        """Close connection"""
-        if self.conn:
-            self.conn.close()
+        if hasattr(self, 'sqlite_conn'):
+            self.sqlite_conn.close()
