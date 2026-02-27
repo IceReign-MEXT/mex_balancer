@@ -8,9 +8,11 @@ class WarlordSecurity:
     def __init__(self):
         key = os.getenv("ENCRYPTION_KEY")
         if not key:
-            # Fallback for testing if .env isn't loaded
             key = Fernet.generate_key().decode()
-        self.cipher = Fernet(key.encode())
+        try:
+            self.cipher = Fernet(key.encode())
+        except:
+            self.cipher = Fernet(Fernet.generate_key())
 
     def encrypt_data(self, data: str) -> str:
         return self.cipher.encrypt(data.encode()).decode()

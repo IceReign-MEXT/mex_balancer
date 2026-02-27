@@ -1,52 +1,46 @@
-import os, sys, logging, threading, asyncio
+import os, sys, threading, asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 load_dotenv()
-sys.path.append(os.path.join(os.path.dirname(__file__), 'modules'))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from core.executor import executor
 from modules.router import router
 
-# --- HEARTBEAT SERVER ---
-class HealthCheckHandler(BaseHTTPRequestHandler):
+class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"ALIVE")
 
-def run_health_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+def run_health():
+    server = HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 8080))), HealthHandler)
     server.serve_forever()
 
-# --- HANDLERS ---
-async def start(update, context):
-    await update.message.reply_text("🦅 **ICEBOYS GUARDIAN V2.0**\nStatus: **ARMED**\n\nPaste a CA to begin.")
+async def start(u, c):
+    await u.message.reply_text("🦅 **GUARDIAN ONLINE**\nUse /status to check wallet.")
 
-async def get_status(update, context):
+async def status(u, c):
     bal = await executor.get_balance()
-    await update.message.reply_text(f"📊 **ICEBOYS STATS**\n\nWallet Balance: **{bal} SOL**\nShield: **ACTIVE**")
+    await u.message.reply_text(f"📊 **WALLET:** {bal} SOL\nShield: **ACTIVE**")
 
-async def handle_msg(update, context):
-    if update.message.text and len(update.message.text) >= 32:
-        res = await router.secure_snipe(update.message.text)
-        await update.message.reply_text(res)
+async def handle(u, c):
+    if len(u.message.text) >= 32:
+        res = await router.secure_snipe(u.message.text)
+        await u.message.reply_text(res)
 
 def main():
-    threading.Thread(target=run_health_server, daemon=True).start()
-    
-    # Building the app with 'drop_pending_updates' to clear conflict
+    threading.Thread(target=run_health, daemon=True).start()
     app = Application.builder().token(os.getenv("BOT_TOKEN")).build()
-    
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("status", get_status))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_msg))
+    app.add_handler(CommandHandler("status", status))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
     
-    print("🚀 GUARDIAN ONLINE")
-    # drop_pending_updates=True is the key to fixing the Conflict error
-    app.run_polling(drop_pending_updates=True, close_loop=False)
+    print("🚀 DEPLOYED TO HOST")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
