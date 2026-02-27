@@ -20,7 +20,10 @@ from telegram.ext import (
 from loguru import logger
 
 from core.config import Config
-from core.sniper import SolanaSniper
+try:
+    from core.sniper import SolanaSniper
+except:
+    from core.simple_sniper import SimpleSniper as SolanaSniper
 from core.security import SecurityManager
 from core.database import DatabaseManager
 from core.analyzer import TokenAnalyzer
