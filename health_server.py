@@ -1,4 +1,4 @@
-"""Health check server for Render"""
+#!/usr/bin/env python3
 import http.server
 import socketserver
 import threading
@@ -11,20 +11,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
         self.end_headers()
-        self.wfile.write(b"MEX BALANCER BOT - OPERATIONAL")
-    
+        self.wfile.write(b"MEX BALANCER PRO - OPERATIONAL")
     def log_message(self, format, *args):
-        pass  # Suppress logs
+        pass
 
-def start_server():
+def start():
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
         httpd.serve_forever()
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=start_server, daemon=True)
-    thread.start()
-    
-    # Keep main thread alive
+    threading.Thread(target=start, daemon=True).start()
     import time
     while True:
         time.sleep(3600)

@@ -1,12 +1,5 @@
-# Core - Only stable, pure-Python packages
 python-telegram-bot==21.4
 python-dotenv==1.0.1
 aiohttp==3.9.5
-loguru==0.7.2
-tenacity==8.3.0
 requests==2.31.0
-urllib3==2.2.1
-base58==2.1.1
-
-# Remove ALL compiled packages that fail on Python 3.14
-# We'll use lightweight alternatives
+loguru==0.7.2

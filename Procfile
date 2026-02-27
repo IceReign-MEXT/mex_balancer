@@ -1,2 +1,2 @@
-web: python health_server.py
 worker: python main.py
+web: python health_server.py
