@@ -1,0 +1,6 @@
+python-telegram-bot
+python-dotenv
+cryptography
+aiohttp
+psycopg2-binary
+solana
