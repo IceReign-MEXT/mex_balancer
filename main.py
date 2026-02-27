@@ -192,7 +192,7 @@ class MexBalancerPro:
         result = await self.execute_swap(token, amount, tier["mev_boost"])
         
         if result["success"]:
-            profit = amount * 0.05  # Simulated 5% profit
+            profit = amount * 0.05
             fee = max(profit, 0) * (tier["fee_percent"] / 100)
             self.db.record_trade(user_id, amount, profit, fee)
             self.admin_revenue += fee
@@ -299,9 +299,7 @@ def main():
     app.add_handler(CallbackQueryHandler(lambda u,c: bot.stats_command(u,c), pattern="^stats$"))
     
     logger.info("🚀 MEX BALANCER PRO v2.1 STARTED")
-    
-    # Use this for Render - prevents event loop issues
-    app.run_polling(drop_pending_updates=True, stop_signals=None)
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
