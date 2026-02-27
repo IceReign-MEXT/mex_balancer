@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-🤖 MEX BALANCER PRO v2.1 - STABLE
-Subscription + Profit Tracking + Coffee Earnings
+🤖 MEX BALANCER PRO v3.0 - WEBHOOK VERSION
+Stable for Render with Port 10000
 """
 
 import os
@@ -10,12 +10,13 @@ import aiohttp
 from datetime import datetime
 from typing import Dict
 from loguru import logger
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ContextTypes, ConversationHandler
 )
 from dotenv import load_dotenv
+from aiohttp import web
 
 load_dotenv()
 
@@ -25,6 +26,10 @@ CHANNEL_ID = os.getenv("CHANNEL_ID")
 RPC_URL = os.getenv("RPC_URL")
 WALLET = os.getenv("SOL_MAIN")
 FEE_WALLET = os.getenv("FEE_WALLET", WALLET)
+PORT = int(os.getenv("PORT", 10000))
+
+# Your Render URL
+WEBHOOK_URL = "https://mex-balancer.onrender.com"
 
 TIERS = {
     "free": {"name": "🆓 Free", "max_trade": 2.0, "daily_trades": 5, "fee_percent": 1.0, "mev_boost": False, "auto_tp": False, "price_sol": 0},
@@ -265,7 +270,6 @@ class MexBalancerPro:
     
     async def notify_channel(self, message: str):
         try:
-            from telegram import Bot
             await Bot(BOT_TOKEN).send_message(chat_id=CHANNEL_ID, text=message, parse_mode="Markdown")
         except:
             pass
@@ -274,32 +278,68 @@ class MexBalancerPro:
         await update.message.reply_text("❌ Cancelled")
         return ConversationHandler.END
 
-def main():
+# Initialize bot
+bot = MexBalancerPro()
+application = Application.builder().token(BOT_TOKEN).build()
+
+# Add handlers
+conv = ConversationHandler(
+    entry_points=[CommandHandler("snipe", bot.snipe_command)],
+    states={WAITING_TOKEN: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_token)],
+            WAITING_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_amount)]},
+    fallbacks=[CommandHandler("cancel", bot.cancel)]
+)
+
+application.add_handler(CommandHandler("start", bot.start))
+application.add_handler(CommandHandler("stats", bot.stats_command))
+application.add_handler(CommandHandler("upgrade", bot.upgrade_command))
+application.add_handler(CommandHandler("wallet", bot.wallet_command))
+application.add_handler(CommandHandler("revenue", bot.admin_revenue_command))
+application.add_handler(conv)
+
+async def health_check(request):
+    return web.Response(text="MEX BALANCER PRO - OPERATIONAL")
+
+async def webhook_handler(request):
+    """Handle Telegram webhook"""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        return web.Response(status=200)
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return web.Response(status=500)
+
+async def main():
     logger.add("logs/bot.log", rotation="500 MB")
-    bot = MexBalancerPro()
+    logger.info("🚀 MEX BALANCER PRO v3.0 STARTING")
     
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Initialize application
+    await application.initialize()
+    await application.start()
     
-    conv = ConversationHandler(
-        entry_points=[CommandHandler("snipe", bot.snipe_command)],
-        states={WAITING_TOKEN: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_token)],
-                WAITING_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_amount)]},
-        fallbacks=[CommandHandler("cancel", bot.cancel)]
-    )
+    # Set webhook
+    await application.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
+    logger.info(f"✅ Webhook set: {WEBHOOK_URL}/webhook")
     
-    app.add_handler(CommandHandler("start", bot.start))
-    app.add_handler(CommandHandler("stats", bot.stats_command))
-    app.add_handler(CommandHandler("upgrade", bot.upgrade_command))
-    app.add_handler(CommandHandler("wallet", bot.wallet_command))
-    app.add_handler(CommandHandler("revenue", bot.admin_revenue_command))
-    app.add_handler(conv)
+    # Notify channel
+    await bot.notify_channel("🤖 *MEX BALANCER PRO v3.0* is ONLINE!\\n✅ Webhook active\\n✅ Ready for trading")
     
-    app.add_handler(CallbackQueryHandler(lambda u,c: bot.snipe_command(u,c), pattern="^snipe$"))
-    app.add_handler(CallbackQueryHandler(lambda u,c: bot.upgrade_command(u,c), pattern="^upgrade$"))
-    app.add_handler(CallbackQueryHandler(lambda u,c: bot.stats_command(u,c), pattern="^stats$"))
+    # Start web server
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    app.router.add_post('/webhook', webhook_handler)
     
-    logger.info("🚀 MEX BALANCER PRO v2.1 STARTED")
-    app.run_polling(drop_pending_updates=True)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    logger.info(f"🌐 Server starting on port {PORT}")
+    await site.start()
+    
+    # Keep running
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
