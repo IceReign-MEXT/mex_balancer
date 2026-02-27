@@ -19,3 +19,4 @@ solders==0.21.0
 # HTTP
 requests==2.31.0
 urllib3==2.2.1
+base58==2.1.1
