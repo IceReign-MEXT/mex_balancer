@@ -129,9 +129,10 @@ class MexBalancerPro:
         await update.message.reply_text("❌ Cancelled")
         return ConversationHandler.END
 
-def main():
+async def main():
     logger.add("logs/bot.log", rotation="500 MB")
     bot = MexBalancerPro()
+    
     app = Application.builder().token(BOT_TOKEN).build()
     
     conv = ConversationHandler(
@@ -148,7 +149,15 @@ def main():
     app.add_handler(conv)
     
     logger.info("🚀 BOT STARTED")
-    app.run_polling()
+    
+    # Start the bot
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    # Keep running
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
