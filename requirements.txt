@@ -4,3 +4,5 @@ cryptography
 aiohttp
 psycopg2-binary
 solana
+requests
+base58
