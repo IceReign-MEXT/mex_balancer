@@ -1,8 +1,35 @@
-python-telegram-bot
-python-dotenv
-cryptography
-aiohttp
-psycopg2-binary
-solana
-requests
-base58
+# Core Solana & Web3
+solana==0.35.0
+solders==0.21.0
+anchorpy==0.20.0
+construct==2.10.68
+
+# Telegram
+python-telegram-bot==21.4
+telegram-text==0.2.0
+
+# Database & Storage
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+redis==5.0.8
+
+# HTTP & Async
+aiohttp==3.9.5
+aiohttp-socks==0.8.4
+uvloop==0.19.0; sys_platform != 'win32'
+
+# Security & Crypto
+cryptography==42.0.5
+python-jose[cryptography]==3.3.0
+mnemonic==0.21
+
+# Monitoring & Utils
+loguru==0.7.2
+python-dotenv==1.0.1
+tenacity==8.3.0
+websockets==12.0
+prometheus-client==0.20.0
+
+# Analytics
+pandas==2.2.2
+numpy==1.26.4
