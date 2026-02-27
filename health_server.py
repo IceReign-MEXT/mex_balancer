@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-import http.server
-import socketserver
-import threading
-import os
-
+import http.server, socketserver, threading, os
 PORT = int(os.environ.get("PORT", 10000))
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -12,15 +8,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"MEX BALANCER PRO - OPERATIONAL")
-    def log_message(self, format, *args):
-        pass
+    def log_message(self, *args): pass
 
 def start():
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        httpd.serve_forever()
+    socketserver.TCPServer(("", PORT), Handler).serve_forever()
 
-if __name__ == "__main__":
-    threading.Thread(target=start, daemon=True).start()
-    import time
-    while True:
-        time.sleep(3600)
+threading.Thread(target=start, daemon=True).start()
+import time
+while True: time.sleep(3600)
