@@ -1,5 +1,6 @@
-"""Database operations"""
-import asyncpg
+"""Database operations using psycopg2"""
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from typing import Optional, List, Dict
 from loguru import logger
@@ -7,17 +8,17 @@ from loguru import logger
 class DatabaseManager:
     def __init__(self, database_url: str):
         self.database_url = database_url
-        self.pool: Optional[asyncpg.Pool] = None
+        self.conn = None
     
-    async def connect(self):
-        """Create connection pool"""
-        self.pool = await asyncpg.create_pool(self.database_url)
-        await self._create_tables()
+    def connect(self):
+        """Create connection"""
+        self.conn = psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
+        self._create_tables()
     
-    async def _create_tables(self):
+    def _create_tables(self):
         """Initialize schema"""
-        async with self.pool.acquire() as conn:
-            await conn.execute("""
+        with self.conn.cursor() as cur:
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS trades (
                     id SERIAL PRIMARY KEY,
                     user_id BIGINT NOT NULL,
@@ -50,49 +51,62 @@ class DatabaseManager:
                 CREATE INDEX IF NOT EXISTS idx_trades_user ON trades(user_id);
                 CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
             """)
+            self.conn.commit()
     
-    async def record_trade(self, user_id: int, token: str, amount_sol: float,
-                          entry_price: float, tx_signature: str, fee_paid: float) -> int:
+    def record_trade(self, user_id: int, token: str, amount_sol: float,
+                    entry_price: float, tx_signature: str, fee_paid: float) -> int:
         """Record new trade"""
-        async with self.pool.acquire() as conn:
-            trade_id = await conn.fetchval("""
+        with self.conn.cursor() as cur:
+            cur.execute("""
                 INSERT INTO trades (user_id, token_address, amount_sol, entry_price, 
                                   tx_signature, fee_paid)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
-            """, user_id, token, amount_sol, entry_price, tx_signature, fee_paid)
+            """, (user_id, token, amount_sol, entry_price, tx_signature, fee_paid))
+            
+            trade_id = cur.fetchone()['id']
             
             # Update user stats
-            await conn.execute("""
+            cur.execute("""
                 INSERT INTO users (user_id, total_trades)
-                VALUES ($1, 1)
+                VALUES (%s, 1)
                 ON CONFLICT (user_id) 
                 DO UPDATE SET total_trades = users.total_trades + 1
-            """, user_id)
+            """, (user_id,))
             
+            self.conn.commit()
             return trade_id
     
-    async def get_active_positions(self, user_id: int) -> List[Dict]:
+    def get_active_positions(self, user_id: int) -> List[Dict]:
         """Get active trades"""
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch("""
+        with self.conn.cursor() as cur:
+            cur.execute("""
                 SELECT * FROM trades 
-                WHERE user_id = $1 AND status = 'active'
+                WHERE user_id = %s AND status = 'active'
                 ORDER BY created_at DESC
-            """, user_id)
-            return [dict(row) for row in rows]
+            """, (user_id,))
+            return [dict(row) for row in cur.fetchall()]
     
-    async def update_trade_exit(self, trade_id: int, exit_price: float, 
-                                pnl_percent: float, status: str = 'closed'):
+    def update_trade_exit(self, trade_id: int, exit_price: float, 
+                         pnl_percent: float, status: str = 'closed'):
         """Update trade on exit"""
-        async with self.pool.acquire() as conn:
-            await conn.execute("""
+        with self.conn.cursor() as cur:
+            cur.execute("""
                 UPDATE trades 
-                SET exit_price = $1, pnl_percent = $2, status = $3, updated_at = NOW()
-                WHERE id = $4
-            """, exit_price, pnl_percent, status, trade_id)
+                SET exit_price = %s, pnl_percent = %s, status = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (exit_price, pnl_percent, status, trade_id))
+            self.conn.commit()
     
-    async def close(self):
-        """Close pool"""
-        if self.pool:
-            await self.pool.close()
+    def update_trade_pnl(self, trade_id: int, pnl_percent: float):
+        """Update current P&L"""
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                UPDATE trades SET pnl_percent = %s WHERE id = %s
+            """, (pnl_percent, trade_id))
+            self.conn.commit()
+    
+    def close(self):
+        """Close connection"""
+        if self.conn:
+            self.conn.close()

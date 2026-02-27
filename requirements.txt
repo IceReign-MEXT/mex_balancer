@@ -1,26 +1,21 @@
-# Core - Pure Python where possible
+# Core - Pure Python
 python-telegram-bot==21.4
 python-dotenv==1.0.1
 aiohttp==3.9.5
 loguru==0.7.2
 tenacity==8.3.0
 
-# Database
-asyncpg==0.29.0
+# Database - Use psycopg2 (pre-compiled) instead of asyncpg
+psycopg2-binary==2.9.9
 
 # Security
 cryptography==42.0.5
 mnemonic==0.21
 
-# Solana - Use lightweight version for free tier
-# Note: solana and solders will be installed but may use stubs on free tier
-# Render free tier has limited Rust compilation
+# Solana
 solana==0.35.0
 solders==0.21.0
 
-# HTTP client
+# HTTP
 requests==2.31.0
 urllib3==2.2.1
-
-# Async
-asyncio-mqtt==0.16.1

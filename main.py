@@ -272,7 +272,7 @@ class MexBalancerBot:
             net_investment = amount - fee_amount
             
             # Record in database
-            trade_id = await self.db.record_trade(
+            trade_id = self.db.record_trade(
                 user_id=update.effective_user.id,
                 token=token,
                 amount_sol=net_investment,
@@ -328,7 +328,7 @@ class MexBalancerBot:
 
     async def positions_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show active positions"""
-        positions = await self.db.get_active_positions(update.effective_user.id)
+        positions = self.db.get_active_positions(update.effective_user.id)
         
         if not positions:
             await update.message.reply_text(
